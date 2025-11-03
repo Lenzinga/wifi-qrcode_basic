@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wi‑Fi QR Code Generator</title>
+    <style>
+      :root {
+        --bg: #0b0d12;
+        --panel: #131720;
+        --panel-2: #0f131b;
+        --text: #e6e9ef;
+        --muted: #9aa3af;
+        --accent: #5b9cff;
+        --border: #202737;
+        --ok: #22c55e;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: radial-gradient(1200px 600px at 20% -10%, #14203b, transparent),
+                    radial-gradient(800px 400px at 100% 10%, #1b2a52, transparent),
+                    var(--bg);
+        color: var(--text);
+        font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      header h1 { font-size: 18px; margin: 0; font-weight: 600; letter-spacing: 0.2px; }
+      .grid {
+        display: grid;
+        grid-template-columns: 420px 1fr;
+        gap: 20px;
+      }
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+      .panel {
+        background: linear-gradient(180deg, var(--panel), var(--panel-2));
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.02);
+      }
+      .form {
+        padding: 18px;
+      }
+      .row { margin-bottom: 14px; }
+      .row:last-child { margin-bottom: 0; }
+      label { display: block; margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+      input[type="text"], input[type="password"], select {
+        width: 100%;
+        background: #0d1220;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        outline: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+      input[type="text"]:focus, input[type="password"]:focus, select:focus {
+        border-color: #3559a6;
+        box-shadow: 0 0 0 3px rgba(91,156,255,0.15);
+      }
+      .inline {
+        display: flex; align-items: center; gap: 10px;
+      }
+      .inline > * { flex: 1; }
+      .inline .shrink { flex: 0 0 auto; }
+      .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+      button {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, #172037, #12192c);
+        color: var(--text);
+        padding: 10px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+        transition: transform 0.05s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      button:hover { border-color: #2a3a64; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+      button:active { transform: translateY(1px); }
+      button.primary { background: linear-gradient(180deg, #2a5bd1, #254cb1); border-color: #2247a8; }
+      button:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+
+      .preview {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        align-items: center;
+        justify-items: center;
+        padding: 16px;
+        gap: 10px;
+      }
+      .canvas-wrap {
+        width: min(520px, 90%);
+        aspect-ratio: 1 / 1;
+        display: grid;
+        place-items: center;
+        background: rgba(255,255,255,0.02);
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+      }
+      .qr-slot {
+        width: 88%;
+        aspect-ratio: 1 / 1;
+        display: grid;
+        place-items: center;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 3px 20px rgba(0,0,0,0.15);
+      }
+      .qr-slot svg { width: 92%; height: auto; display: block; }
+      .hint { color: var(--muted); font-size: 12px; }
+      .ok-badge { color: var(--ok); font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Wi‑Fi QR Code Generator</h1>
+      </header>
+      <div class="grid">
+        <section class="panel form">
+          <div class="row">
+            <label for="ssid">Network name (SSID)</label>
+            <input id="ssid" type="text" placeholder="e.g. MyHomeWiFi" autocomplete="off" />
+          </div>
+          <div class="row">
+            <label for="encryption">Encryption</label>
+            <select id="encryption">
+              <option value="WPA" selected>WPA/WPA2/WPA3</option>
+              <option value="WEP">WEP</option>
+              <option value="nopass">None (open)</option>
+            </select>
+          </div>
+          <div class="row" id="passwordRow">
+            <label for="password">Password</label>
+            <div class="inline">
+              <input id="password" type="password" placeholder="Enter password" />
+              <label class="shrink" style="color:var(--muted); font-size:12px; display:flex; align-items:center; gap:6px;">
+                <input id="showPw" type="checkbox" /> show
+              </label>
+            </div>
+          </div>
+          <div class="row">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input id="hidden" type="checkbox" /> Hidden network
+            </label>
+          </div>
+          <div class="row inline">
+            <div>
+              <label for="size">Size (px)</label>
+              <select id="size">
+                <option>256</option>
+                <option selected>384</option>
+                <option>512</option>
+                <option>768</option>
+              </select>
+            </div>
+            <div>
+              <label for="frame">White frame (px)</label>
+              <select id="frame">
+                <option>16</option>
+                <option selected>24</option>
+                <option>32</option>
+                <option>48</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="downloadPng" class="primary" disabled>Download PNG</button>
+            <button id="downloadSvg" disabled>Download SVG</button>
+          </div>
+          <p class="hint" id="statusHint">Fill in SSID to generate the code.</p>
+        </section>
+
+        <section class="panel preview">
+          <div class="hint">Preview</div>
+          <div class="canvas-wrap">
+            <div class="qr-slot" id="qrPreview" aria-live="polite"></div>
+          </div>
+          <div class="hint" id="payloadHint"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- QR code generator core (matrix) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+    <script>
+      // Build WIFI payload per standard: WIFI:T:<auth>;S:<ssid>;P:<password>;H:true;;
+      function escapeWifiValue(str) {
+        return String(str)
+          .replace(/\\/g, "\\\\") // escape backslash first
+          .replace(/;/g, "\\;")
+          .replace(/,/g, "\\,")
+          .replace(/:/g, "\\:")
+          .replace(/\"/g, '\\"')
+          .replace(/\'/g, "\\'");
+      }
+
+      function buildWifiString({ ssid, password, auth, hidden }) {
+        const T = auth || 'WPA';
+        const S = escapeWifiValue(ssid || '');
+        const parts = [ `WIFI:T:${T}`, `S:${S}` ];
+        if (T !== 'nopass') {
+          const P = escapeWifiValue(password || '');
+          parts.push(`P:${P}`);
+        }
+        if (hidden) parts.push('H:true');
+        return parts.join(';') + ';;';
+      }
+
+      // Render helpers using the qr object's modules
+      function qrToSvg(qr, sizePx, quietPx, framePx, fg = '#000', bg = '#fff') {
+        const count = qr.getModuleCount();
+        // Compute cell size so that the whole SVG fits sizePx including quiet zone and frame
+        const totalPadding = quietPx + framePx;
+        const cells = count + 2 * (totalPadding);
+        const cell = Math.floor(sizePx / cells) || 1;
+        const dim = cell * cells;
+        const margin = totalPadding * cell;
+
+        // Build path for dark modules
+        let path = '';
+        for (let r = 0; r < count; r++) {
+          for (let c = 0; c < count; c++) {
+            if (qr.isDark(r, c)) {
+              const x = margin + c * cell;
+              const y = margin + r * cell;
+              path += `M${x} ${y}h${cell}v${cell}h-${cell}z`;
+            }
+          }
+        }
+
+        // SVG with white background (includes quiet zone + frame)
+        return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+               `<svg xmlns="http://www.w3.org/2000/svg" width="${dim}" height="${dim}" viewBox="0 0 ${dim} ${dim}" shape-rendering="crispEdges">` +
+               `<rect width="100%" height="100%" fill="${bg}"/>` +
+               `<path d="${path}" fill="${fg}"/>` +
+               `</svg>`;
+      }
+
+      function qrToCanvas(qr, sizePx, quietPx, framePx, fg = '#000', bg = '#fff') {
+        const count = qr.getModuleCount();
+        const totalPadding = quietPx + framePx;
+        const cells = count + 2 * (totalPadding);
+        const cell = Math.floor(sizePx / cells) || 1;
+        const dim = cell * cells;
+        const margin = totalPadding * cell;
+        const cnv = document.createElement('canvas');
+        cnv.width = cnv.height = dim;
+        const ctx = cnv.getContext('2d');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, dim, dim);
+        ctx.fillStyle = fg;
+        for (let r = 0; r < count; r++) {
+          for (let c = 0; c < count; c++) {
+            if (qr.isDark(r, c)) {
+              const x = margin + c * cell;
+              const y = margin + r * cell;
+              ctx.fillRect(x, y, cell, cell);
+            }
+          }
+        }
+        return cnv;
+      }
+
+      // DOM elements
+      const $ssid = document.getElementById('ssid');
+      const $enc = document.getElementById('encryption');
+      const $password = document.getElementById('password');
+      const $passwordRow = document.getElementById('passwordRow');
+      const $hidden = document.getElementById('hidden');
+      const $size = document.getElementById('size');
+      const $frame = document.getElementById('frame');
+      const $showPw = document.getElementById('showPw');
+      const $preview = document.getElementById('qrPreview');
+      const $status = document.getElementById('statusHint');
+      const $payloadHint = document.getElementById('payloadHint');
+      const $png = document.getElementById('downloadPng');
+      const $svg = document.getElementById('downloadSvg');
+
+      function sanitizeFilename(name) {
+        return String(name || 'wifi')
+          .trim()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-zA-Z0-9._-]/g, '')
+          .toLowerCase();
+      }
+
+      function updatePasswordVisibility() {
+        const isOpen = $enc.value === 'nopass';
+        $passwordRow.style.display = isOpen ? 'none' : '';
+      }
+
+      function update() {
+        const ssid = $ssid.value.trim();
+        const auth = $enc.value;
+        const hidden = $hidden.checked;
+        const password = $password.value;
+        const sizePx = parseInt($size.value, 10) || 384;
+        const framePx = parseInt($frame.value, 10) || 24;
+
+        updatePasswordVisibility();
+
+        if (!ssid) {
+          $preview.innerHTML = '';
+          $status.textContent = 'Fill in SSID to generate the code.';
+          $png.disabled = true; $svg.disabled = true;
+          $payloadHint.textContent = '';
+          return;
+        }
+
+        const payload = buildWifiString({ ssid, password, auth, hidden });
+        // Make QR matrix
+        const qr = qrcode(0, 'M');
+        qr.addData(payload);
+        qr.make();
+
+        // Quiet zone: standard 4 modules -> translate to pixels later
+        const quietPx = 0; // we'll handle quiet area by drawing more white frame instead for simplicity
+        const svgText = qrToSvg(qr, sizePx, quietPx, Math.round(framePx / 2));
+        $preview.innerHTML = svgText;
+        $status.innerHTML = '<span class="ok-badge">QR ready</span>'; 
+        $png.disabled = false; $svg.disabled = false;
+        $payloadHint.textContent = payload;
+      }
+
+      function download(type) {
+        const ssid = $ssid.value.trim();
+        if (!ssid) return;
+        const auth = $enc.value;
+        const hidden = $hidden.checked;
+        const password = $password.value;
+        const sizePx = parseInt($size.value, 10) || 384;
+        const framePx = parseInt($frame.value, 10) || 24;
+
+        const payload = buildWifiString({ ssid, password, auth, hidden });
+        const qr = qrcode(0, 'M');
+        qr.addData(payload);
+        qr.make();
+
+        // Apply quiet zone of 4 modules plus desired frame in pixels
+        const quietModules = 4;
+        // Convert quiet modules to pixels approximately by equalizing to frame scale in our functions
+        // We approximate by adding quiet as extra pixels similar to frame
+        const quietPx = quietModules * 4; // heuristic; exact cell size chosen in renderer keeps crisp edges
+        const fname = `${sanitizeFilename(ssid)}-wifi-qr.${type}`;
+
+        if (type === 'svg') {
+          const svgText = qrToSvg(qr, sizePx, quietPx, framePx);
+          const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = Object.assign(document.createElement('a'), { href: url, download: fname });
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+        } else {
+          const cnv = qrToCanvas(qr, sizePx, quietPx, framePx);
+          cnv.toBlob(function(blob) {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = Object.assign(document.createElement('a'), { href: url, download: fname });
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+          }, 'image/png');
+        }
+      }
+
+      // Events
+      [$ssid, $enc, $password, $hidden, $size, $frame].forEach(el => {
+        el.addEventListener('input', update);
+        el.addEventListener('change', update);
+      });
+      $showPw.addEventListener('change', () => {
+        $password.type = $showPw.checked ? 'text' : 'password';
+      });
+      $png.addEventListener('click', () => download('png'));
+      $svg.addEventListener('click', () => download('svg'));
+
+      // Init
+      update();
+    </script>
+  </body>
+  </html>
+
